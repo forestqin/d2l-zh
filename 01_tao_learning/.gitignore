@@ -8,6 +8,3 @@ data/
 *egg-info*
 dist*
 _build/
-test*.md
-run.sh
-notebook/
