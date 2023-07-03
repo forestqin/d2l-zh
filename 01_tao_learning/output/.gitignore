@@ -1,13 +1,9 @@
 **/.ipynb_checkpoints
 **/__pycache__
-# data/
-# *.json
+*.json
 *.params
 *.DS_Store
-# *.csv
+*.csv
 *egg-info*
 dist*
 _build/
-test*.md
-run.sh
-notebook_project/

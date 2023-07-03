@@ -1,10 +1,10 @@
 **/.ipynb_checkpoints
 **/__pycache__
-data/
-*.json
+FashionMNIST/
+# *.json
 *.params
 *.DS_Store
-*.csv
+# *.csv
 *egg-info*
 dist*
 _build/
