@@ -9,6 +9,7 @@ ignore_list = [
     "Id", "LotFrontage", "Street", "Alley", "Utilities", "Condition2",
     "YearBuilt", "RoofMatl", "BsmtFinType2", "BsmtFinSF2", "BsmtUnfSF",
     "Electrical", "PoolArea", "PoolQC", "MiscVal", "MoSold", "YrSold"
+    
 ]
 
 dummy_list = [

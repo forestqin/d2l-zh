@@ -42,6 +42,11 @@ def run_one():
     rf = RandomForestRegressor(n_estimators=1000, random_state=42)
     rf.fit(train_X, train_y)
 
+    importances = list(rf.feature_importances_)
+    feature_importances = [(feature, round(importance, 2)) for feature, importance in zip(feature_list, importances)]
+    feature_importances = sorted(feature_importances, key=lambda x: x[1], reverse=False)
+    [print('Variable: {:20} Importance: {}'.format(*pair)) for pair in feature_importances[-10:]]
+
     train_y_hat = rf.predict(train_X)
     train_rmse = rmse(train_y_hat, train_y)
 
@@ -51,12 +56,9 @@ def run_one():
     baseline = rmse(np.mean(train_y), train_y)
     print(f'baseline:{baseline:.1%}, train_rmse:{train_rmse:.1%}, test_rmse:{test_rmse:.1%}')
 
-    importances = list(rf.feature_importances_)
-    feature_importances = [(feature, round(importance, 2)) for feature, importance in zip(feature_list, importances)]
-    feature_importances = sorted(feature_importances, key=lambda x: x[1], reverse=False)
-    [print('Variable: {:20} Importance: {}'.format(*pair)) for pair in feature_importances]
+    
 
-    export(rf, feature_list)
+    # export(rf, feature_list)
 
 def best_search():
     param_dist = {'n_estimators': randint(50, 2000),
