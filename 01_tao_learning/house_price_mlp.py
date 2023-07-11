@@ -33,6 +33,7 @@ def load_data2():
 
     return train_X, train_y, valid_X, valid_y
 
+
 def log_rmse(net, features, labels):
     # 为了在取对数时进一步稳定该值，将小于1的值设置为1
     clipped_preds = torch.clamp(net(features), 1, float('inf'))
