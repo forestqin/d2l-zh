@@ -3,41 +3,9 @@ import numpy as np
 import time
 import datetime
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 import config
-
-
-def gen_train_test_dataset(df):
-    feature_list = df.columns[:-1]
-    train_features = df.iloc[:, :-1].values
-    train_labels = df.iloc[:, -1].values
-    train_X, test_X, train_y, test_y = train_test_split(train_features,
-                                                        train_labels,
-                                                        test_size=config.test_size,
-                                                        random_state=42)
-    print('Training Features Shape:', train_X.shape)
-    print('Training Labels Shape:', train_y.shape)
-    print('Testing Features Shape:', test_X.shape)
-    print('Testing Labels Shape:', test_y.shape)
-    return train_X, test_X, train_y, test_y, feature_list
-
-
-def calc_mre(regressor, X, y):
-    y_hat = regressor.predict(X)
-    mre = np.mean(abs(y_hat / y - 1))
-    return mre
-
-
-def gen_submission(predictor, test_df, suffix):
-    preds = predictor.predict(test_df.drop(columns=["Id"]))
-    submission = pd.DataFrame({"Id": test_df.Id, config.target: preds})
-    # dateArray = datetime.datetime.fromtimestamp(time.time())
-    # output_file = "./output/house_price_submission_{}_{}.csv".format(
-    #     suffix, dateArray.strftime("%Y%m%d_%H%M%S"))
-    output_file = f"./output/submission_{suffix}.csv"
-
-    submission.to_csv(output_file, index=False)
-    print("submission saved to {}".format(output_file))
-    return submission
+from config import log
 
 class Timer:
     def __init__(self):
@@ -59,3 +27,67 @@ class Timer:
 
     def cumsum(self):
         return np.array(self.times).cumsum().tolist()
+
+def gen_train_test_dataset(train_df, train_label):
+    features = train_df.values
+    labels = train_label.values
+    train_X, test_X, train_y, test_y = train_test_split(features,
+                                                        labels,
+                                                        test_size=config.test_size,
+                                                        random_state=42)
+    log.info(f'Training  Shape: {train_X.shape}, {train_y.shape}')
+    log.info(f'Validate  Shape: {test_X.shape}, {test_y.shape}')
+    return train_X, test_X, train_y, test_y
+
+
+def get_k_fold_data(k, i, X, y):
+    assert k > 1
+    fold_size = X.shape[0] // k
+    X_train, y_train = [], []
+    for j in range(k):
+        a, b = (j * fold_size, (j + 1) * fold_size)
+        X_part, y_part = X.iloc[a:b, :], y[a:b]
+        if j == i:
+            X_valid, y_valid = X_part, y_part
+        else:
+            X_train.append(X_part)
+            y_train.append(y_part)
+
+    X_train = pd.concat(X_train)
+    y_train = pd.concat(y_train)
+
+    if i == 0:
+        log.info(f'Training  Shape: {X_train.shape}, {y_train.shape}')
+        log.info(f'Validate  Shape: {X_valid.shape}, {y_valid.shape}')
+
+    return X_train, y_train, X_valid, y_valid
+
+
+def calc_score(predictor, X, y):
+    y_hat = predictor.predict(X)
+    if config.metric == "mape":
+        score = np.mean(abs(y_hat / y - 1))*100
+    elif config.metric == "rmse":
+        score = np.sqrt(mean_squared_error(y, y_hat))
+    else:
+        raise NotImplementedError
+    return score
+
+# 进行K折交叉验证
+def k_fold(k, X_train, y_train, num_epochs, learning_rate, weight_decay,
+           batch_size):
+    train_l_sum, valid_l_sum = 0, 0
+    for i in range(k):
+        data = get_k_fold_data(k, i, X_train, y_train)
+        net = get_net().to(device)
+        train_ls, valid_ls = train(net, *data, num_epochs, learning_rate,
+                                   weight_decay, batch_size)
+        train_l_sum += train_ls[-1]
+        valid_l_sum += valid_ls[-1]
+        if i == 0:
+            d2l.plot(list(range(1, num_epochs + 1)), [train_ls, valid_ls],
+                     xlabel='epoch', ylabel='rmse', xlim=[1, num_epochs],
+                     legend=['train', 'valid'], yscale='log') 
+        print(f'fold {i + 1}, train log rmse {float(train_ls[-1]):f}, '
+              f'valid log rmse {float(valid_ls[-1]):f}')
+    return train_l_sum / k, valid_l_sum / k

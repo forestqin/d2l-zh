@@ -2,48 +2,61 @@ import os
 import sys
 import pandas as pd
 import numpy as np
-import xgboost as xgb
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import mean_squared_error
 
 import config
-import preprocess
-import utils
+from config import log
+from preprocess import get_feature_df
+from utils import Timer, get_k_fold_data, calc_score
 from models import xgboost, random_forest, mlp
 
 os.chdir(sys.path[0])
 
-def train_model(model_name, train_X, train_y, val_X, val_y):
+
+def train_model(model_name, X_train, y_train, X_valid, y_valid, feature_list):
+    # log.info(f"{model_name}: train start")
     if model_name == "xgboost":
-        model = xgboost.XGBModel()
-        predictor = model(train_X, train_y)
+        predictor = xgboost.XGBModel(feature_list)
+        predictor.train(X_train, y_train)
+        if config.debug:
+            predictor.show_importance()
     elif model_name == "random_forest":
-        model = random_forest.RandomForestModel()
-        predictor = model(train_X, train_y)
+        predictor = random_forest.RandomForestModel(feature_list)
+        predictor.train(X_train, y_train)
+        if config.debug:
+            predictor.show_importance()
     elif model_name == "mlp":
-        model = mlp.MLPModel()
-        predictor = model(train_X, train_y, val_X, val_y)
+        model = mlp.MLPModel(feature_list)
+        predictor = model.train(X_train, y_train, X_valid, y_valid)
     else:
         raise(Exception("Invalid model name"))
-    
     return predictor
 
+def main():
+    log.info(f"Model: {config.model_name}")
+    train_df, train_label, test_df, test_Id, feature_list = get_feature_df(config.train_input, config.test_input)
+    feature_list = train_df.columns
 
-model_name = "xgboost"
-model_name = "random_forest"
-model_name = "mlp"
+    train_l_sum, valid_l_sum = 0, 0
+    k = config.k_fold
+    for i in range(k):
+        X_train, y_train, X_valid, y_valid = get_k_fold_data(k, i, train_df, train_label)
+        t = Timer()
+        predictor = train_model(config.model_name, X_train, y_train, X_valid, y_valid, feature_list)
+        spend_time = t.stop()
+        train_score = calc_score(predictor, X_train, y_train)
+        valid_score = calc_score(predictor, X_valid, y_valid)
+        log.info(f"{config.metric} - {i+1}/{k}: {train_score=:.1f}, {valid_score=:.1f}, {spend_time=:.1f}s")
+
+        train_l_sum += train_score
+        valid_l_sum += valid_score
+        break
+        
+    train_score = train_l_sum / (i+1)
+    valid_score = valid_l_sum / (i+1)
+    log.info(f"{config.metric} - {k}_fold average: {train_score=:.1f}, {valid_score=:.1f}")
+
+    predictor.submit(test_df, test_Id)
+
 
 if __name__ == "__main__":
-    train_df = preprocess.gen_feature_dataframe(config.train_input, is_train=True)
-    test_df = preprocess.gen_feature_dataframe(config.test_input, is_train=False)
-    train_X, val_X, train_y, val_y, feature_list = utils.gen_train_test_dataset(train_df)
-
-    t = utils.Timer()
-    print(f"train start")
-    predictor = train_model(model_name, train_X, train_y, val_X, val_y)
-    print(f"train spend in {t.stop():.1f}s")
-
-    train_mre = utils.calc_mre(predictor, train_X, train_y)
-    validate_mre = utils.calc_mre(predictor, val_X, val_y)
-    print(f"{model_name}: {train_mre=:.2%}, {validate_mre=:.2%}")
-    submission = utils.gen_submission(predictor, test_df, model_name)
+    main()

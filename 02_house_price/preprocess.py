@@ -3,6 +3,8 @@ import sys
 import pandas as pd
 import numpy as np
 import config
+from config import log
+import utils
 
 os.chdir(sys.path[0])
 
@@ -29,14 +31,14 @@ numeric_list = [
     "EnclosedPorch", "3SsnPorch", "ScreenPorch"
 ]
 
-LotShape = {"Reg": 4, "IR1": 3, "IR2": 2, "IR3": 1}
-LandContour = {"Low": 1, "Bnk": 2, "HLS": 3, "Lvl": 4}
-LandSlope = {"Sev": 1, "Mod": 3, "Gtl": 5}
-ExterQual = {"Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-BsmtQual = {"NA": 0, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-BsmtExposure = {"NA": 0, "No": 1, "Mn": 2, "Av": 3, "Gd": 4}
+LotShape = {"NA": 4, "Reg": 4, "IR1": 3, "IR2": 2, "IR3": 1}
+LandContour = {"NA": 1, "Low": 1, "Bnk": 2, "HLS": 3, "Lvl": 4}
+LandSlope = {"NA": 3, "Sev": 1, "Mod": 3, "Gtl": 5}
+ExterQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
+BsmtQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
+BsmtExposure = {"NA": 3, "No": 1, "Mn": 2, "Av": 3, "Gd": 4}
 BsmtFinType1 = {
-    "NA": 0,
+    "NA": 3,
     "Unf": 1,
     "LwQ": 2,
     "Rec": 3,
@@ -44,9 +46,10 @@ BsmtFinType1 = {
     "ALQ": 5,
     "GLQ": 6
 }
-HeatingQC = {"Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-KitchenQual = {"Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
+HeatingQC = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
+KitchenQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
 Functional = {
+    "NA": 5, 
     "Sal": 1,
     "Sev": 2,
     "Maj2": 3,
@@ -56,9 +59,9 @@ Functional = {
     "Min1": 7,
     "Typ": 8
 }
-FireplaceQu = {"NA": 0, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
+FireplaceQu = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
 GarageFinish = {"NA": 0, "Unf": 1, "RFn": 2, "Fin": 3}
-GarageQual = {"NA": 0, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
+GarageQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
 grade_dict = {
     "LotShape": LotShape,
     "LandContour": LandContour,
@@ -94,8 +97,7 @@ def year_grade(year):
         return 0
 
 
-def gen_feature_dataframe(input_path, is_train):
-    df = pd.read_csv(input_path)
+def process(df):
     new_df = pd.DataFrame()
     df_list = []
     for col in df.columns:
@@ -112,20 +114,37 @@ def gen_feature_dataframe(input_path, is_train):
         else:
             continue
     new_df["YearRemodAdd_Grade"] = df["YearRemodAdd"].apply(year_grade)
-
-    if is_train:  # train dataset: target column
-        new_df[config.target] = df[config.target].fillna("NA")
-    else:  # test dataset: Id column
-        new_df["Id"] = df["Id"]
     df_list.append(new_df)
     final_df = pd.concat(df_list, axis=1)
-
-    output_path = input_path.replace(".csv", "_etl.csv")
-    final_df.to_csv(output_path, index=False)
-    print(f"output path: {output_path}")
     return final_df
 
+def get_feature_df(train_input, test_input):
+    t = utils.Timer()
+    train = pd.read_csv(train_input)
+    test = pd.read_csv(test_input)
+    train_data = train.drop(['Id', 'SalePrice'], axis=1)
+    test_data = test.drop(['Id'], axis=1)
+    all_features = pd.concat((train_data.iloc[:, :], test_data.iloc[:, :]))
+    
+    feature_df = process(all_features)
+
+    n_train = train_data.shape[0]
+    train_df = feature_df[:n_train]
+    train_label = train['SalePrice']
+    test_df  = feature_df[n_train:]
+    test_Id = test['Id']
+    feature_list = train_df.columns.tolist()
+
+
+    log.info(f'Training Shape: {train_df.shape}, {train_label.shape}')
+    log.info(f'Testing  Shape: {test_df.shape}, {test_Id.shape}')
+    log.info(f"process data in {t.stop():.1f}s")
+
+    return train_df, train_label, test_df, test_Id, feature_list
 
 if __name__ == "__main__":
-    train_df = preprocess(config.train_raw_input, is_train=True)
-    test_df = preprocess(config.test_raw_input, is_train=False)
+    train_df, train_label, test_df, test_Id = get_feature_df(config.train_input, config.test_input)
+    log.info(f"{train_df.shape=}")
+    log.info(f"{train_label.shape=}")
+    log.info(f"{test_df.shape=}")
+    log.info(f"{test_Id.shape=}")
