@@ -159,7 +159,3 @@ def get_feature_df(train_input, test_input):
 
 if __name__ == "__main__":
     train_df, train_label, test_df, test_Id, feature_list = get_feature_df(config.train_input, config.test_input)
-    log.info(f"{train_df.shape=}")
-    log.info(f"{train_label.shape=}")
-    log.info(f"{test_df.shape=}")
-    log.info(f"{test_Id.shape=}")
