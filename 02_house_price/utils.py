@@ -2,10 +2,13 @@ import pandas as pd
 import numpy as np
 import time
 import datetime
+import torch
+from torch import nn
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import config
 from config import log
+from matplotlib import pyplot as plt
 
 class Timer:
     def __init__(self):
@@ -69,25 +72,17 @@ def calc_score(predictor, X, y):
         score = np.mean(abs(y_hat / y - 1))*100
     elif config.metric == "rmse":
         score = np.sqrt(mean_squared_error(y, y_hat))
+    elif config.metric == "log_rmse":
+        score = log_rmse(y_hat, y)
     else:
         raise NotImplementedError
     return score
 
-# 进行K折交叉验证
-def k_fold(k, X_train, y_train, num_epochs, learning_rate, weight_decay,
-           batch_size):
-    train_l_sum, valid_l_sum = 0, 0
-    for i in range(k):
-        data = get_k_fold_data(k, i, X_train, y_train)
-        net = get_net().to(device)
-        train_ls, valid_ls = train(net, *data, num_epochs, learning_rate,
-                                   weight_decay, batch_size)
-        train_l_sum += train_ls[-1]
-        valid_l_sum += valid_ls[-1]
-        if i == 0:
-            d2l.plot(list(range(1, num_epochs + 1)), [train_ls, valid_ls],
-                     xlabel='epoch', ylabel='rmse', xlim=[1, num_epochs],
-                     legend=['train', 'valid'], yscale='log') 
-        print(f'fold {i + 1}, train log rmse {float(train_ls[-1]):f}, '
-              f'valid log rmse {float(valid_ls[-1]):f}')
-    return train_l_sum / k, valid_l_sum / k
+def log_rmse(y_hat, y):
+    # y_hat is numpy, y is dataframe
+    loss = nn.MSELoss()
+    y = torch.tensor(y.values.reshape(-1, 1), dtype=torch.float32)
+    y_hat = torch.tensor(y_hat.reshape(-1, 1), dtype=torch.float32)
+    clipped_preds = torch.clamp(y_hat, 1, float('inf'))
+    rmse = torch.sqrt(loss(torch.log(clipped_preds), torch.log(y)))
+    return rmse.item()

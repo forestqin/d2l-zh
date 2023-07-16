@@ -3,15 +3,17 @@ import os
 from logging.handlers import TimedRotatingFileHandler
 
 
-def init_logger(logger_name, level):
-    if level == "DEBUG":
+def init_logger(level):
+    if level == "DEBUG" or level == "debug":
         LEVEL = logging.DEBUG
     else:
         LEVEL = logging.INFO
-    logger = logging.getLogger(logger_name)
+    logger = logging.getLogger("logger")
     logger.setLevel(LEVEL)
-    datefmt = "%Y-%m-%d %H:%M:%S"
-    format_str = "[%(asctime)s]\t%(name)s\t%(filename)s[%(lineno)s]\t%(funcName)s\t%(levelname)s\t%(message)s"
+    # datefmt = "%Y-%m-%d %H:%M:%S"
+    datefmt = "%m-%d %H:%M:%S"
+    # format_str = "[%(asctime)s]\t%(name)s\t%(filename)s[%(lineno)s]\t%(funcName)s\t%(levelname)s\t%(message)s"
+    format_str = "[%(asctime)s][%(filename)s:%(funcName)s]%(levelname)s %(message)s"
     formatter = logging.Formatter(format_str, datefmt)
 
     if not os.path.exists("log"):
@@ -46,7 +48,7 @@ def init_logger(logger_name, level):
 
 
 def main():
-    logger = init_logger("test")
+    logger = init_logger("debug")
     print(logger.getEffectiveLevel())
     logger.error("test-error")
     logger.info("test-info")

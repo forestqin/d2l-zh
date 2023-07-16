@@ -5,6 +5,8 @@ import numpy as np
 import config
 from config import log
 import utils
+import torch
+
 
 os.chdir(sys.path[0])
 
@@ -97,7 +99,7 @@ def year_grade(year):
         return 0
 
 
-def process(df):
+def complex_process(df):
     new_df = pd.DataFrame()
     df_list = []
     for col in df.columns:
@@ -118,6 +120,17 @@ def process(df):
     final_df = pd.concat(df_list, axis=1)
     return final_df
 
+
+def simple_process(all_features):
+    numeric_features = all_features.dtypes[all_features.dtypes != 'object'].index
+    all_features[numeric_features] = all_features[numeric_features].apply(
+        lambda x: (x - x.mean()) / (x.std()))
+    all_features[numeric_features] = all_features[numeric_features].fillna(0)
+    all_features = pd.get_dummies(all_features, dummy_na=True)
+    log.debug(all_features.shape)
+    return all_features
+
+
 def get_feature_df(train_input, test_input):
     t = utils.Timer()
     train = pd.read_csv(train_input)
@@ -126,14 +139,15 @@ def get_feature_df(train_input, test_input):
     test_data = test.drop(['Id'], axis=1)
     all_features = pd.concat((train_data.iloc[:, :], test_data.iloc[:, :]))
     
-    feature_df = process(all_features)
+    # feature_df = simple_process(all_features)
+    feature_df = complex_process(all_features)
 
-    n_train = train_data.shape[0]
+    n_train = train.shape[0]
     train_df = feature_df[:n_train]
     train_label = train['SalePrice']
     test_df  = feature_df[n_train:]
     test_Id = test['Id']
-    feature_list = train_df.columns.tolist()
+    feature_list = feature_df.columns.tolist()
 
 
     log.info(f'Training Shape: {train_df.shape}, {train_label.shape}')
@@ -142,8 +156,9 @@ def get_feature_df(train_input, test_input):
 
     return train_df, train_label, test_df, test_Id, feature_list
 
+
 if __name__ == "__main__":
-    train_df, train_label, test_df, test_Id = get_feature_df(config.train_input, config.test_input)
+    train_df, train_label, test_df, test_Id, feature_list = get_feature_df(config.train_input, config.test_input)
     log.info(f"{train_df.shape=}")
     log.info(f"{train_label.shape=}")
     log.info(f"{test_df.shape=}")
