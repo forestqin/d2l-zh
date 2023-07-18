@@ -6,119 +6,93 @@ import config
 from config import log
 import utils
 import torch
+from sklearn import preprocessing
 
 
 os.chdir(sys.path[0])
 
-ignore_list = [
-    "Id", "LotFrontage", "Street", "Alley", "Utilities", "Condition2",
-    "YearBuilt", "RoofMatl", "BsmtFinType2", "BsmtFinSF2", "BsmtUnfSF",
-    "Electrical", "PoolArea", "PoolQC", "MiscVal", "MoSold", "YrSold",
-    "MSSubClass", "MSZoning", "HouseStyle", "Exterior1st", "Exterior2nd",
-    "Heating", "MiscFeature", "SaleType"
+target = "SalePrice"
+
+ignore_list = ["Id", "Utilities", "Condition2", "3SsnPorch", "PoolQC", 
+    "MoSold", "YrSold", "MiscFeature"]
+
+dummy_list = ["MSSubClass", "MSZoning", "LotFrontage", "Street", "Alley", 
+    "LotShape", "LandContour", "LotConfig", "LandSlope", "Neighborhood", 
+    "Condition1", "BldgType", "HouseStyle", "RoofStyle", "RoofMatl", 
+    "Exterior1st", "Exterior2nd", "MasVnrType", "ExterCond", "Foundation", 
+    "BsmtCond", "BsmtExposure", "BsmtFinType1", "BsmtFinType2", "Heating", 
+    "CentralAir", "Electrical", "BsmtHalfBath", "BedroomAbvGr", "KitchenAbvGr", 
+    "Functional", "GarageType", "GarageFinish", "PavedDrive", "Fence", 
+    "SaleType", "SaleCondition"
 ]
 
-dummy_list = [
-    "LotConfig", "Neighborhood", "Condition1", "BldgType", "RoofStyle",
-    "MasVnrType", "Foundation", "CentralAir", "GarageType", "PavedDrive",
-    "Fence", "SaleCondition"
-]
+log_numeric_list = ["LotArea", "MasVnrArea", "BsmtFinSF1", "BsmtFinSF2", 
+    "BsmtUnfSF", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF", "GrLivArea", 
+    "GarageArea", "WoodDeckSF", "OpenPorchSF", "EnclosedPorch", "ScreenPorch"]
 
 numeric_list = [
-    "LotArea", "OverallQual", "OverallCond", "YearRemodAdd", "MasVnrArea",
-    "BsmtFinSF1", "TotalBsmtSF", "1stFlrSF", "2ndFlrSF", "LowQualFinSF",
-    "GrLivArea", "BsmtFullBath", "BsmtHalfBath", "FullBath", "HalfBath",
-    "BedroomAbvGr", "KitchenAbvGr", "TotRmsAbvGrd", "Fireplaces",
-    "GarageYrBlt", "GarageCars", "GarageArea", "WoodDeckSF", "OpenPorchSF",
-    "EnclosedPorch", "3SsnPorch", "ScreenPorch"
-]
+    "OverallQual", "OverallCond", "YearBuilt", "YearRemodAdd", 
+    "BsmtFullBath", "FullBath", "HalfBath", "TotRmsAbvGrd", 
+    "Fireplaces", "GarageYrBlt", "GarageCars"]
 
-LotShape = {"NA": 4, "Reg": 4, "IR1": 3, "IR2": 2, "IR3": 1}
-LandContour = {"NA": 1, "Low": 1, "Bnk": 2, "HLS": 3, "Lvl": 4}
-LandSlope = {"NA": 3, "Sev": 1, "Mod": 3, "Gtl": 5}
-ExterQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-BsmtQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-BsmtExposure = {"NA": 3, "No": 1, "Mn": 2, "Av": 3, "Gd": 4}
-BsmtFinType1 = {
-    "NA": 3,
-    "Unf": 1,
-    "LwQ": 2,
-    "Rec": 3,
-    "BLQ": 4,
-    "ALQ": 5,
-    "GLQ": 6
-}
-HeatingQC = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-KitchenQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-Functional = {
-    "NA": 5, 
-    "Sal": 1,
-    "Sev": 2,
-    "Maj2": 3,
-    "Maj1": 4,
-    "Mod": 5,
-    "Min2": 6,
-    "Min1": 7,
-    "Typ": 8
-}
-FireplaceQu = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
-GarageFinish = {"NA": 0, "Unf": 1, "RFn": 2, "Fin": 3}
-GarageQual = {"NA": 3, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
+Grade = {"NA": 0, "Po": 1, "Fa": 2, "TA": 3, "Gd": 4, "Ex": 5}
 grade_dict = {
-    "LotShape": LotShape,
-    "LandContour": LandContour,
-    "LandSlope": LandSlope,
-    "ExterQual": ExterQual,
-    "ExterCond": ExterQual,
-    "BsmtQual": BsmtQual,
-    "BsmtCond": BsmtQual,
-    "BsmtExposure": BsmtExposure,
-    "BsmtFinType1": BsmtFinType1,
-    "HeatingQC": HeatingQC,
-    "KitchenQual": KitchenQual,
-    "Functional": Functional,
-    "FireplaceQu": FireplaceQu,
-    "GarageFinish": GarageFinish,
-    "GarageQual": GarageQual,
-    "GarageCond": GarageQual
+    "ExterQual": Grade,
+    "BsmtQual": Grade,
+    "HeatingQC": Grade,
+    "KitchenQual": Grade,
+    "FireplaceQu": Grade,
+    "GarageQual": Grade,
+    "GarageCond": Grade
 }
-
-
-def year_grade(year):
-    try:
-        year = int(year)
-        if year >= 2000:
-            return 3
-        elif year >= 1990:
-            return 2
-        elif year >= 1980:
-            return 1
-        else:
-            return 0
-    except:
-        return 0
 
 
 def complex_process(df):
+    df["MasVnrArea_01"] = df["MasVnrArea"].apply(lambda x: 0 if x == 0 else 1)
+    df["BsmtFinSF1_01"] = df["BsmtFinSF1"].apply(lambda x: 0 if x == 0 else 1)
+    df["BsmtUnfSF_01"] = df["BsmtUnfSF"].apply(lambda x: 0 if x == 0 else 1)
+    df["TotalBsmtSF_01"] = df["TotalBsmtSF"].apply(lambda x: 0 if x == 0 else 1)
+    df["2ndFlrSF_01"] = df["2ndFlrSF"].apply(lambda x: 0 if x == 0 else 1)
+    df["LowQualFinSF_01"] = df["LowQualFinSF"].apply(lambda x: 0 if x == 0 else 1)
+    df["WoodDeckSF_01"] = df["WoodDeckSF"].apply(lambda x: 0 if x == 0 else 1)
+    df["OpenPorchSF_01"] = df["OpenPorchSF"].apply(lambda x: 0 if x == 0 else 1)
+    df["EnclosedPorch_01"] = df["EnclosedPorch"].apply(lambda x: 0 if x == 0 else 1)
+    df["ScreenPorch_01"] = df["ScreenPorch"].apply(lambda x: 0 if x == 0 else 1)
+    df["PoolArea_01"] = df["PoolArea"].apply(lambda x: 0 if x == 0 else 1)
+    df["MiscVal_01"] = df["MiscVal"].apply(lambda x: 0 if x == 0 else 1)
+    # df["YearRemodAdd_Grade"] = df["YearRemodAdd"].apply(year_grade)
+    df["GarageYrBlt"] = df["GarageYrBlt"].fillna(1950)
+
+    dl = ["MasVnrArea_01", "BsmtFinSF1_01", "BsmtUnfSF_01", "TotalBsmtSF_01", "2ndFlrSF_01", 
+        "LowQualFinSF_01", "WoodDeckSF_01", "OpenPorchSF_01", "EnclosedPorch_01", 
+        "ScreenPorch_01", "PoolArea_01", "MiscVal_01"]
+    dummy_list.extend(dl)
+
+    lbl = preprocessing.LabelEncoder()
     new_df = pd.DataFrame()
     df_list = []
     for col in df.columns:
         if col in dummy_list:
-            dummy_df = pd.get_dummies(df[col].fillna("NA"), prefix=col)
-            df_list.append(dummy_df)
+            # dummy_df = pd.get_dummies(df[col].fillna("NA"), prefix=col)
+            # df_list.append(dummy_df)
+            new_df[col] = lbl.fit_transform(df[col])
+        elif col in log_numeric_list:
+            d = np.log(df[col].fillna(0).astype("float32")+1)
+            d = (d - d.mean()) / d.std()
+            new_df[col] = d.values  # 标准化
         elif col in numeric_list:
             d = df[col].fillna(0).astype("float32")
-            new_df[col] = (d - d.mean()) / d.std()  # 标准化
+            d = (d - d.mean()) / d.std()
+            new_df[col] = d.values  # 标准化
         elif col in grade_dict:
-            d = grade_dict[col]
-            new_col = df[col].fillna("NA").map(d)
-            new_df[col] = new_col
+            dic = grade_dict[col]
+            d = df[col].fillna("NA").map(dic)
+            # new_df[col] = (d - d.mean()) / d.std()  # 标准化
         else:
             continue
-    new_df["YearRemodAdd_Grade"] = df["YearRemodAdd"].apply(year_grade)
     df_list.append(new_df)
-    final_df = pd.concat(df_list, axis=1)
-    return final_df
+    feature_df = pd.concat(df_list, axis=1)
+    return feature_df
 
 
 def simple_process(all_features):
@@ -135,7 +109,7 @@ def get_feature_df(train_input, test_input):
     t = utils.Timer()
     train = pd.read_csv(train_input)
     test = pd.read_csv(test_input)
-    train_data = train.drop(['Id', 'SalePrice'], axis=1)
+    train_data = train.drop(['Id', target], axis=1)
     test_data = test.drop(['Id'], axis=1)
     all_features = pd.concat((train_data.iloc[:, :], test_data.iloc[:, :]))
     
@@ -144,7 +118,8 @@ def get_feature_df(train_input, test_input):
 
     n_train = train.shape[0]
     train_df = feature_df[:n_train]
-    train_label = train['SalePrice']
+    train_label = train[target]
+    # train_label = train[target].apply(lambda x: np.log(x+1))
     test_df  = feature_df[n_train:]
     test_Id = test['Id']
     feature_list = feature_df.columns.tolist()

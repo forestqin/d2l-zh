@@ -20,20 +20,21 @@ class MLPModel:
     def __init__(self, feature_list):
         self.name = "MLP"
         self.feature_list = feature_list
-        self.num_epochs = 500
-        self.interval = 50
+        self.num_epochs = 3000
+        self.interval = 100
 
         self.batch_size = 128
-        self.lr = 5
-        self.weight_decay = 0
+        self.lr = 0.5
+        self.weight_decay = 0.5
         # self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = 'cpu'
 
         # self.model = nn.Sequential(nn.Linear(len(self.feature_list),32, device=self.device), 
-        #                            nn.ReLU(), 
+        #                            nn.Dropout(p=0.2), nn.ReLU(), 
         #                            nn.Linear(32, 1, device=self.device))
         self.model = nn.Sequential(nn.Linear(len(self.feature_list), 1, device=self.device))
-        log.info(f"{self.device}, {self.model}")
+        log.info(f"{self.device=}")
+        log.info(f", {self.model}")
 
         self.loss = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(),
@@ -93,9 +94,10 @@ class MLPModel:
 
     def log_rmse(self, X, y):
         # 为了在取对数时进一步稳定该值，将小于1的值设置为1
-        preds  = self.model(X)
-        clipped_preds = torch.clamp(preds, 1, float('inf'))
+        y_hat  = self.model(X)
+        clipped_preds = torch.clamp(y_hat, 1, float('inf'))
         rmse = torch.sqrt(self.loss(torch.log(clipped_preds), torch.log(y)))
+        # rmse = torch.sqrt(self.loss(y_hat, y))
         return rmse.item()
 
     def predict(self, X):

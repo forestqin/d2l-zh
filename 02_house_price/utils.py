@@ -85,4 +85,5 @@ def log_rmse(y_hat, y):
     y_hat = torch.tensor(y_hat.reshape(-1, 1), dtype=torch.float32)
     clipped_preds = torch.clamp(y_hat, 1, float('inf'))
     rmse = torch.sqrt(loss(torch.log(clipped_preds), torch.log(y)))
+    # rmse = torch.sqrt(loss(y_hat, y))
     return rmse.item()
