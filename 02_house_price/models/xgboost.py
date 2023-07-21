@@ -5,11 +5,8 @@ import numpy as np
 import xgboost as xgb
 from sklearn.model_selection import train_test_split, GridSearchCV
 from config import log
-# import optuna
-
 
 os.chdir(sys.path[0])
-
 
 class XGBModel:
 
@@ -38,6 +35,9 @@ class XGBModel:
         # 弱化过拟合
         # params = {'learning_rate': 0.03, 'n_estimators': 600, 'max_depth': 4, 'min_child_weight': 1, 'seed': 0,
         #                 'subsample': 0.6, 'colsample_bytree': 0.7, 'gamma': 0, 'reg_alpha': 0.1, 'reg_lambda': 100}
+        # params = {'max_depth': 8, 'learning_rate': 0.00548238490249874, 'n_estimators': 5939, 'min_child_weight': 3, 
+        #     'colsample_bytree': 0.5091788739568768, 'subsample': 0.33385527700790313, 
+        #     'reg_alpha': 0.35664574763818574, 'reg_lambda': 9.196809405747823}
         model = xgb.XGBRegressor(**params)
         model.fit(X, y)
         self.model = model
@@ -106,35 +106,3 @@ def run_grid_search(X, y):
 
     regressor = optimized_GBM.best_estimator_
     return regressor
-
-
-def score_dataset(X, y, model=xgb.XGBRegressor()):
-    # Label encoding for categoricals
-    #
-    # Label encoding is good for XGBoost and RandomForest, but one-hot
-    # would be better for models like Lasso or Ridge. The `cat.codes`
-    # attribute holds the category levels.
-    for colname in X.select_dtypes(["category"]):
-        X[colname] = X[colname].cat.codes
-    # Metric for Housing competition is RMSLE (Root Mean Squared Log Error)
-    log_y = np.log(y)
-    score = cross_val_score(
-        model, X, log_y, cv=5, scoring="neg_mean_squared_error",
-    )
-    score = -1 * score.mean()
-    score = np.sqrt(score)
-    return score
-
-def objective(trial):
-    xgb_params = dict(
-        max_depth=trial.suggest_int("max_depth", 2, 10),
-        learning_rate=trial.suggest_float("learning_rate", 1e-4, 1e-1, log=True),
-        n_estimators=trial.suggest_int("n_estimators", 1000, 8000),
-        min_child_weight=trial.suggest_int("min_child_weight", 1, 10),
-        colsample_bytree=trial.suggest_float("colsample_bytree", 0.2, 1.0),
-        subsample=trial.suggest_float("subsample", 0.2, 1.0),
-        reg_alpha=trial.suggest_float("reg_alpha", 1e-4, 1e2, log=True),
-        reg_lambda=trial.suggest_float("reg_lambda", 1e-4, 1e2, log=True),
-    )
-    xgb = XGBRegressor(**xgb_params)
-    return score_dataset(X_train, y_train, xgb)
