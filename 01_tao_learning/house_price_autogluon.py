@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as mp
 from autogluon.tabular import TabularDataset, TabularPredictor
+import os
+import sys
+os.chdir(sys.path[0])
 
 df = pd.read_csv("./data/kaggle_house_price/kaggle_house_pred_train_processed.csv", sep="\t")
 df.head()

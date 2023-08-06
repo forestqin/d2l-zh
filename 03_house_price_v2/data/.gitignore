@@ -1,6 +1,6 @@
 **/.ipynb_checkpoints
 **/__pycache__
-# data/
+FashionMNIST/
 # *.json
 *.params
 *.DS_Store
@@ -8,7 +8,3 @@
 *egg-info*
 dist*
 _build/
-test*.md
-run.sh
-notebook_project/
-AutogluonModels/
