@@ -122,19 +122,27 @@ def run_en_model(X_train, y_train):
                         cv=10)
     en_model.fit(X_train,y_train)   
     y_train_pred = en_model.predict(X_train)
-    mse_train = round(mean_squared_error(y_train_pred,y_train),5)
+    mse_train = round(mean_squared_error(y_train_pred, y_train), 5)
     rmse_en = round(rmse(en_model),5)
     print('MSE for Elastic Net is :',mse_train)
     print('RMSE for Elastic Net is :',rmse_en)
     return en_model, y_train_pred
 
 def run_light_gbm_model(X_train, y_train):
-    lgb_model = lgb.LGBMRegressor(objective='regression', num_leaves=5,
-                              learning_rate=0.05, n_estimators=4000,
+    param = dict(objective='regression', num_leaves=7,
+                              learning_rate=0.025, n_estimators=8000,
                               max_bin = 55, bagging_fraction = 0.8,
                               bagging_freq = 5, feature_fraction = 0.2,
                               feature_fraction_seed=9, bagging_seed=9,
                               min_data_in_leaf =6, min_sum_hessian_in_leaf = 11)
+    # best_param = {'max_depth': 10, 
+    #          'learning_rate': 0.0035, 
+    #          'n_estimators': 12000, 'max_bin': 94, 
+    #          'bagging_freq': 5, 'min_data_in_leaf': 5, 
+    #          'min_sum_hessian_in_leaf': 5}
+    # param.update(best_param)
+
+    lgb_model = lgb.LGBMRegressor(**param)
     lgb_model.fit(X_train,y_train)
     y_train_pred = lgb_model.predict(X_train)
     mse_train = round(mean_squared_error(y_train_pred,y_train),5)
@@ -237,5 +245,5 @@ def main():
     print("Your submission was successfully saved!")
 
 if __name__ == "__main__":
-    # run_lgbm()
-    main()
+    run_lgbm()
+    # main()
