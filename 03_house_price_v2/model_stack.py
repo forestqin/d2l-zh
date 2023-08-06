@@ -140,6 +140,11 @@ def run_light_gbm_model(X_train, y_train):
     #          'n_estimators': 12000, 'max_bin': 94, 
     #          'bagging_freq': 5, 'min_data_in_leaf': 5, 
     #          'min_sum_hessian_in_leaf': 5}
+
+    best_param = {'reg_alpha': 0.004229637808729127, 'reg_lambda': 0.06347788058980736, 
+                  'colsample_bytree': 0.9, 'subsample': 1.0, 'learning_rate': 0.02, 
+                  'max_depth': 10, 'num_leaves': 6, 'min_child_samples': 4, 
+                  'min_data_per_groups': 76}
     # param.update(best_param)
 
     lgb_model = lgb.LGBMRegressor(**param)
